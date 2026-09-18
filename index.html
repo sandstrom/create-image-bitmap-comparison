@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ImageBitmap resize quality test</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17201c;
+        --muted: #5c6861;
+        --paper: #f4f1e8;
+        --panel: #fffdf7;
+        --line: #c9c8bd;
+        --accent: #006b58;
+        --error: #a32d24;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          linear-gradient(90deg, rgb(23 32 28 / 4%) 1px, transparent 1px),
+          linear-gradient(rgb(23 32 28 / 4%) 1px, transparent 1px),
+          var(--paper);
+        background-size: 24px 24px;
+        font-family: "Avenir Next", Avenir, "Gill Sans", sans-serif;
+      }
+
+      main {
+        width: min(1680px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 40px 0 72px;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 24px;
+        align-items: end;
+        padding-bottom: 24px;
+        border-bottom: 2px solid var(--ink);
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 800px;
+        margin-bottom: 8px;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(2rem, 5vw, 4.75rem);
+        font-weight: 500;
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin: 0 0 16px;
+        font-size: 1.1rem;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin-bottom: 4px;
+        font-size: 1rem;
+        letter-spacing: 0;
+      }
+
+      .lede,
+      .note,
+      .metric,
+      #environment {
+        color: var(--muted);
+      }
+
+      .lede {
+        max-width: 780px;
+        margin-bottom: 0;
+        font-size: 1.05rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      button,
+      .file-picker {
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid var(--ink);
+        border-radius: 4px;
+        color: var(--panel);
+        background: var(--ink);
+        font: 650 0.9rem/1 "Avenir Next", Avenir, sans-serif;
+        cursor: pointer;
+      }
+
+      .file-picker {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .file-picker input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .file-picker:focus-within {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      button.secondary {
+        color: var(--ink);
+        background: transparent;
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: wait;
+      }
+
+      .run-info {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+        font-family: Menlo, Monaco, monospace;
+        font-size: 0.78rem;
+      }
+
+      #status[data-state="error"] {
+        color: var(--error);
+      }
+
+      #status[data-state="reference"] {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      section {
+        padding-top: 32px;
+      }
+
+      .source-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 768px);
+        gap: 20px;
+        align-items: start;
+      }
+
+      figure {
+        margin: 0;
+      }
+
+      figcaption {
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      canvas {
+        display: block;
+        max-width: 100%;
+        border: 1px solid var(--ink);
+        background: white;
+      }
+
+      #source-overview {
+        width: 100%;
+        height: auto;
+      }
+
+      #source-crop {
+        width: min(100%, 640px);
+        height: auto;
+      }
+
+      .results {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .result {
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel);
+      }
+
+      .result-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+        margin-bottom: 12px;
+      }
+
+      .result-head button {
+        min-height: 34px;
+        padding: 0 10px;
+        font-size: 0.78rem;
+      }
+
+      .metric {
+        margin-bottom: 0;
+        font: 0.74rem/1.45 Menlo, Monaco, monospace;
+      }
+
+      .views {
+        display: grid;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .preview {
+        min-width: 0;
+        overflow-x: auto;
+      }
+
+      .preview canvas {
+        box-sizing: content-box;
+        width: 768px;
+        max-width: none;
+        height: 576px;
+      }
+
+      .difference {
+        margin-top: 12px;
+      }
+
+      .native canvas,
+      .difference canvas {
+        box-sizing: content-box;
+        width: 256px;
+        max-width: none;
+        height: 192px;
+      }
+
+      .error-message {
+        min-height: 192px;
+        padding: 16px;
+        border: 1px solid var(--error);
+        color: var(--error);
+        font-family: Menlo, Monaco, monospace;
+        white-space: pre-wrap;
+      }
+
+      @media (max-width: 1100px) {
+        header,
+        .source-layout,
+        .results {
+          grid-template-columns: 1fr;
+        }
+
+        .actions {
+          justify-content: flex-start;
+        }
+      }
+
+      @media (max-width: 720px) {
+        main {
+          width: min(100% - 20px, 1680px);
+          padding-top: 24px;
+        }
+
+        .run-info,
+        .views {
+          grid-template-columns: 1fr;
+        }
+
+        .run-info {
+          align-items: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>ImageBitmap resize quality test</h1>
+          <p class="lede">Compare how this browser reduces a 2048×1536 PNG to 256×192. The canonical stress chart is identified when selected, but other images work too.</p>
+        </div>
+        <div class="actions">
+          <label class="file-picker">Choose source PNG<input id="source-file" type="file" accept="image/png"></label>
+          <button id="rerun" class="secondary" disabled>Run again</button>
+        </div>
+      </header>
+
+      <div class="run-info">
+        <span id="environment"></span>
+        <span id="status"></span>
+      </div>
+
+      <section>
+        <h2>Original source</h2>
+        <div class="source-layout">
+          <figure>
+            <figcaption>Uploaded 2048×1536 source. The overview is scaled only by CSS.</figcaption>
+            <canvas id="source-overview" width="2048" height="1536"></canvas>
+          </figure>
+          <figure>
+            <figcaption>640×512 crop of the spoke target at 1:1 pixels</figcaption>
+            <canvas id="source-crop" width="640" height="512"></canvas>
+          </figure>
+        </div>
+      </section>
+
+      <section>
+        <h2>Browser outputs</h2>
+        <p class="note">Each native output is followed by a 3× zoom using nearest-neighbor scaling. MAE is the mean absolute per-channel RGB difference from the exact 8×8 area average; max is the largest single-channel difference; &gt;12 is the percentage of pixels whose mean RGB difference exceeds 12. Alias RMSE is measured against the reference in the five above-Nyquist checker bands. Edge is the FWHM of the diagonal red stripe's chroma profile in destination pixels (lower is sharper); ring is its largest chroma overshoot or undershoot. Difference maps amplify each absolute RGB channel error 8×. The reference is diagnostic, not a required rendering algorithm.</p>
+        <div id="results" class="results"></div>
+      </section>
+    </main>
+
+    <script>
+      const SOURCE_WIDTH = 2048;
+      const SOURCE_HEIGHT = 1536;
+      const TARGET_WIDTH = 256;
+      const TARGET_HEIGHT = 192;
+      const SCALE = 8;
+      const PREVIEW_SCALE = 3;
+      const CROP_X = 704;
+      const CROP_Y = 128;
+      const RESIZE_QUALITIES = ["pixelated", "low", "medium", "high"];
+      const ALIAS_REGION = { x: 172, y: 0, width: 84, height: 60 };
+      const RED_EDGE = {
+        yStart: 98,
+        xLimit: 96,
+        sourceStartY: 768,
+        sourceCenterX: 116,
+        slope: 0.57,
+        profileRadius: 4,
+        binWidth: 0.125,
+        sourceChroma: 190
+      };
+      const EXPECTED_SOURCE_SHA256 = "70e42a65fb07b5b6235058e9e94474fadb4bb68b66e5f9ef38e57fb3a173aa28";
+
+      const sourceCanvas = document.querySelector("#source-overview");
+      const sourceContext = sourceCanvas.getContext("2d", { alpha: false, willReadFrequently: true });
+      const cropCanvas = document.querySelector("#source-crop");
+      const sourceFileInput = document.querySelector("#source-file");
+      const resultsElement = document.querySelector("#results");
+      const environmentElement = document.querySelector("#environment");
+      const statusElement = document.querySelector("#status");
+      const rerunButton = document.querySelector("#rerun");
+
+      let sourceBlob;
+      let runNumber = 0;
+
+      async function sha256(blob) {
+        const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+        return [...new Uint8Array(digest)]
+          .map((byte) => byte.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      async function loadSourceImage(file) {
+        const sourceHash = await sha256(file);
+        const isReferenceFile = sourceHash === EXPECTED_SOURCE_SHA256;
+
+        const imageUrl = URL.createObjectURL(file);
+        const image = new Image();
+
+        try {
+          await new Promise((resolve, reject) => {
+            image.addEventListener("load", resolve, { once: true });
+            image.addEventListener("error", () => reject(new Error("The source PNG could not be decoded.")), { once: true });
+            image.src = imageUrl;
+          });
+
+          if (image.naturalWidth !== SOURCE_WIDTH || image.naturalHeight !== SOURCE_HEIGHT) {
+            throw new RangeError(`The source must be ${SOURCE_WIDTH}×${SOURCE_HEIGHT} pixels.`);
+          }
+
+          sourceContext.clearRect(0, 0, SOURCE_WIDTH, SOURCE_HEIGHT);
+          sourceContext.drawImage(image, 0, 0);
+          const cropContext = cropCanvas.getContext("2d", { alpha: false });
+          cropContext.imageSmoothingEnabled = false;
+          cropContext.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+          cropContext.drawImage(
+            sourceCanvas,
+            CROP_X,
+            CROP_Y,
+            cropCanvas.width,
+            cropCanvas.height,
+            0,
+            0,
+            cropCanvas.width,
+            cropCanvas.height
+          );
+          return {
+            imageData: sourceContext.getImageData(0, 0, SOURCE_WIDTH, SOURCE_HEIGHT),
+            isReferenceFile
+          };
+        } finally {
+          URL.revokeObjectURL(imageUrl);
+        }
+      }
+
+      function areaAverage(sourceImage) {
+        const reference = new ImageData(TARGET_WIDTH, TARGET_HEIGHT);
+        const source = sourceImage.data;
+        const target = reference.data;
+
+        for (let targetY = 0; targetY < TARGET_HEIGHT; targetY += 1) {
+          for (let targetX = 0; targetX < TARGET_WIDTH; targetX += 1) {
+            let red = 0;
+            let green = 0;
+            let blue = 0;
+
+            for (let offsetY = 0; offsetY < SCALE; offsetY += 1) {
+              for (let offsetX = 0; offsetX < SCALE; offsetX += 1) {
+                const sourceX = targetX * SCALE + offsetX;
+                const sourceY = targetY * SCALE + offsetY;
+                const sourceOffset = (sourceY * SOURCE_WIDTH + sourceX) * 4;
+                red += source[sourceOffset];
+                green += source[sourceOffset + 1];
+                blue += source[sourceOffset + 2];
+              }
+            }
+
+            const targetOffset = (targetY * TARGET_WIDTH + targetX) * 4;
+            target[targetOffset] = Math.round(red / 64);
+            target[targetOffset + 1] = Math.round(green / 64);
+            target[targetOffset + 2] = Math.round(blue / 64);
+            target[targetOffset + 3] = 255;
+          }
+        }
+
+        return reference;
+      }
+
+      function makeCanvas(width, height) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        return canvas;
+      }
+
+      function canvasFromImageData(imageData) {
+        const canvas = makeCanvas(imageData.width, imageData.height);
+        canvas.getContext("2d", { alpha: false }).putImageData(imageData, 0, 0);
+        return canvas;
+      }
+
+      function makePreview(canvas) {
+        const preview = makeCanvas(TARGET_WIDTH * PREVIEW_SCALE, TARGET_HEIGHT * PREVIEW_SCALE);
+        const context = preview.getContext("2d", { alpha: false });
+        context.imageSmoothingEnabled = false;
+        context.drawImage(canvas, 0, 0, preview.width, preview.height);
+        return preview;
+      }
+
+      function aliasRootMeanSquareError(imageData, referenceData) {
+        let squaredError = 0;
+        let channelCount = 0;
+
+        for (let y = ALIAS_REGION.y; y < ALIAS_REGION.y + ALIAS_REGION.height; y += 1) {
+          for (let x = ALIAS_REGION.x; x < ALIAS_REGION.x + ALIAS_REGION.width; x += 1) {
+            const offset = (y * TARGET_WIDTH + x) * 4;
+            for (let channel = 0; channel < 3; channel += 1) {
+              const error = imageData.data[offset + channel] - referenceData.data[offset + channel];
+              squaredError += error * error;
+              channelCount += 1;
+            }
+          }
+        }
+
+        return Math.sqrt(squaredError / channelCount);
+      }
+
+      function redEdgeProfile(imageData) {
+        const binCount = Math.ceil(RED_EDGE.profileRadius * 2 / RED_EDGE.binWidth);
+        const sums = new Float64Array(binCount);
+        const counts = new Uint32Array(binCount);
+        const normalLength = Math.hypot(1, RED_EDGE.slope);
+
+        for (let y = RED_EDGE.yStart; y < TARGET_HEIGHT; y += 1) {
+          const localSourceY = y * SCALE + 3.5 - RED_EDGE.sourceStartY;
+          const centerSourceX = RED_EDGE.sourceCenterX + RED_EDGE.slope * localSourceY;
+
+          for (let x = 0; x < RED_EDGE.xLimit; x += 1) {
+            const distance = ((x * SCALE + 3.5 - centerSourceX) / SCALE) / normalLength;
+            const bin = Math.floor((distance + RED_EDGE.profileRadius) / RED_EDGE.binWidth);
+            if (bin < 0 || bin >= binCount) continue;
+
+            const offset = (y * TARGET_WIDTH + x) * 4;
+            const chroma = imageData.data[offset]
+              - (imageData.data[offset + 1] + imageData.data[offset + 2]) / 2;
+            sums[bin] += chroma;
+            counts[bin] += 1;
+          }
+        }
+
+        return [...sums].flatMap((sum, index) => counts[index] ? [{
+          distance: -RED_EDGE.profileRadius + (index + 0.5) * RED_EDGE.binWidth,
+          value: sum / counts[index]
+        }] : []);
+      }
+
+      function profileCrossing(profile, peakIndex, height, direction) {
+        for (let index = peakIndex; index + direction >= 0 && index + direction < profile.length; index += direction) {
+          const inner = profile[index];
+          const outer = profile[index + direction];
+          if (outer.value > height) continue;
+          const ratio = (height - outer.value) / (inner.value - outer.value);
+          return outer.distance + ratio * (inner.distance - outer.distance);
+        }
+
+        return NaN;
+      }
+
+      function redEdgeMetrics(imageData) {
+        const profile = redEdgeProfile(imageData);
+        let peakIndex = 0;
+        for (let index = 1; index < profile.length; index += 1) {
+          if (profile[index].value > profile[peakIndex].value) peakIndex = index;
+        }
+
+        const peak = profile[peakIndex].value;
+        const left = profileCrossing(profile, peakIndex, peak / 2, -1);
+        const right = profileCrossing(profile, peakIndex, peak / 2, 1);
+        const minimum = Math.min(...profile.map((point) => point.value));
+
+        return {
+          fullWidthHalfMaximum: right - left,
+          ringingAmplitude: Math.max(0, peak - RED_EDGE.sourceChroma, -minimum)
+        };
+      }
+
+      function compareWithReference(imageData, referenceData) {
+        const difference = new ImageData(TARGET_WIDTH, TARGET_HEIGHT);
+        let totalError = 0;
+        let maximumError = 0;
+        let materialPixels = 0;
+
+        for (let offset = 0; offset < imageData.data.length; offset += 4) {
+          const redError = Math.abs(imageData.data[offset] - referenceData.data[offset]);
+          const greenError = Math.abs(imageData.data[offset + 1] - referenceData.data[offset + 1]);
+          const blueError = Math.abs(imageData.data[offset + 2] - referenceData.data[offset + 2]);
+          const averageError = (redError + greenError + blueError) / 3;
+          totalError += redError + greenError + blueError;
+          maximumError = Math.max(maximumError, redError, greenError, blueError);
+          if (averageError > 12) materialPixels += 1;
+
+          difference.data[offset] = Math.min(255, redError * 8);
+          difference.data[offset + 1] = Math.min(255, greenError * 8);
+          difference.data[offset + 2] = Math.min(255, blueError * 8);
+          difference.data[offset + 3] = 255;
+        }
+
+        const edge = redEdgeMetrics(imageData);
+
+        return {
+          difference,
+          meanAbsoluteError: totalError / (TARGET_WIDTH * TARGET_HEIGHT * 3),
+          maximumError,
+          materialPercent: materialPixels / (TARGET_WIDTH * TARGET_HEIGHT) * 100,
+          aliasRootMeanSquareError: aliasRootMeanSquareError(imageData, referenceData),
+          edgeFullWidthHalfMaximum: edge.fullWidthHalfMaximum,
+          ringingAmplitude: edge.ringingAmplitude
+        };
+      }
+
+      function makeResultCard(result, referenceData) {
+        const card = document.createElement("article");
+        card.className = "result";
+
+        if (result.error) {
+          card.innerHTML = `
+            <div class="result-head"><div><h3>${result.label}</h3><p class="metric">Failed</p></div></div>
+            <div class="error-message"></div>
+          `;
+          card.querySelector(".error-message").textContent = result.error;
+          return card;
+        }
+
+        const imageData = result.canvas.getContext("2d", { alpha: false, willReadFrequently: true })
+          .getImageData(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+        const comparison = compareWithReference(imageData, referenceData);
+        const preview = makePreview(result.canvas);
+        const differenceCanvas = canvasFromImageData(comparison.difference);
+        const diagnostics = `alias RMSE ${comparison.aliasRootMeanSquareError.toFixed(2)} · edge ${comparison.edgeFullWidthHalfMaximum.toFixed(2)} px · ring ${comparison.ringingAmplitude.toFixed(1)}`;
+        const metric = result.isReference
+          ? `Exact 8×8 area average · ${diagnostics}`
+          : `MAE ${comparison.meanAbsoluteError.toFixed(2)} · max ${comparison.maximumError} · >12 ${comparison.materialPercent.toFixed(1)}% · ${diagnostics}`;
+
+        card.innerHTML = `
+          <div class="result-head">
+            <div><h3>${result.label}</h3><p class="metric">${metric}</p></div>
+            <button class="secondary">Download PNG</button>
+          </div>
+          <div class="views">
+            <figure class="native"><figcaption>Native 256×192</figcaption></figure>
+            <figure class="preview"><figcaption>3× zoom (nearest-neighbor)</figcaption></figure>
+          </div>
+          <figure class="difference"><figcaption>Difference from area average, each absolute RGB channel error amplified 8×</figcaption></figure>
+        `;
+
+        card.querySelector(".native").append(result.canvas);
+        card.querySelector(".preview").append(preview);
+        card.querySelector(".difference").append(differenceCanvas);
+        card.querySelector("button").addEventListener("click", () => {
+          downloadCanvas(result.canvas, `${result.slug}-${browserSlug()}.png`).catch(showError);
+        });
+
+        return card;
+      }
+
+      function canvasToBlob(canvas) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Canvas PNG encoding failed")), "image/png");
+        });
+      }
+
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      async function downloadCanvas(canvas, filename) {
+        downloadBlob(await canvasToBlob(canvas), filename);
+      }
+
+      function showError(error) {
+        statusElement.dataset.state = "error";
+        statusElement.textContent = `${error.name}: ${error.message}`;
+        console.error(error);
+      }
+
+      function browserDescription() {
+        const userAgent = navigator.userAgent;
+        const match = userAgent.match(/Edg\/([\d.]+)/)
+          || userAgent.match(/Firefox\/([\d.]+)/)
+          || userAgent.match(/(?:Chrome|CriOS)\/([\d.]+)/)
+          || userAgent.match(/Version\/([\d.]+).*Safari/);
+        let name = "Unknown browser";
+        if (/Edg\//.test(userAgent)) name = "Microsoft Edge";
+        else if (/Firefox\//.test(userAgent)) name = "Firefox";
+        else if (/(?:Chrome|CriOS)\//.test(userAgent)) name = "Chrome";
+        else if (/Safari\//.test(userAgent)) name = "Safari";
+        return `${name}${match ? ` ${match[1]}` : ""} · ${navigator.platform}`;
+      }
+
+      function browserSlug() {
+        return browserDescription().toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-|-$/g, "");
+      }
+
+      async function resizeWithImageBitmap(quality) {
+        const bitmap = await createImageBitmap(sourceBlob, {
+          resizeWidth: TARGET_WIDTH,
+          resizeHeight: TARGET_HEIGHT,
+          resizeQuality: quality
+        });
+        const canvas = makeCanvas(TARGET_WIDTH, TARGET_HEIGHT);
+        canvas.getContext("2d", { alpha: false }).drawImage(bitmap, 0, 0);
+        if (typeof bitmap.close === "function") bitmap.close();
+        return canvas;
+      }
+
+      async function makeImageBitmapResult(quality) {
+        const result = {
+          label: `createImageBitmap: ${quality}`,
+          slug: `cib-${quality}`
+        };
+
+        try {
+          result.canvas = await resizeWithImageBitmap(quality);
+        } catch (error) {
+          result.error = `${error.name}: ${error.message}`;
+        }
+
+        return result;
+      }
+
+      function resizeWithCanvas() {
+        const canvas = makeCanvas(TARGET_WIDTH, TARGET_HEIGHT);
+        const context = canvas.getContext("2d", { alpha: false });
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = "high";
+        context.drawImage(sourceCanvas, 0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+        return canvas;
+      }
+
+      async function run(file = sourceBlob) {
+        if (!file) return;
+
+        const currentRun = ++runNumber;
+        statusElement.dataset.state = "working";
+        statusElement.textContent = "Generating browser outputs…";
+        sourceFileInput.disabled = true;
+        rerunButton.disabled = true;
+        resultsElement.replaceChildren();
+
+        try {
+          const { imageData: sourceImage, isReferenceFile } = await loadSourceImage(file);
+          sourceBlob = file;
+          const referenceData = areaAverage(sourceImage);
+          if (currentRun !== runNumber) return;
+
+          const referenceCanvas = canvasFromImageData(referenceData);
+          const results = [{
+            label: "Area-average reference",
+            slug: "area-average",
+            canvas: referenceCanvas,
+            isReference: true
+          }];
+
+          for (const quality of RESIZE_QUALITIES) {
+            results.push(await makeImageBitmapResult(quality));
+          }
+
+          results.push({
+            label: "Canvas drawImage: high",
+            slug: "canvas-high",
+            canvas: resizeWithCanvas()
+          });
+
+          for (const result of results) {
+            resultsElement.append(makeResultCard(result, referenceData));
+          }
+
+          const failures = results.filter((result) => result.error).length;
+          statusElement.dataset.state = failures ? "error" : isReferenceFile ? "reference" : "ready";
+          statusElement.textContent = failures
+            ? `Finished with ${failures} unsupported or failed mode${failures === 1 ? "" : "s"}. The visible errors are evidence too.`
+            : isReferenceFile ? "Reference file detected (hash match)" : "";
+        } catch (error) {
+          showError(error);
+        } finally {
+          sourceFileInput.disabled = false;
+          rerunButton.disabled = !sourceBlob;
+        }
+      }
+
+      environmentElement.textContent = browserDescription();
+      rerunButton.addEventListener("click", () => run());
+      sourceFileInput.addEventListener("change", () => {
+        const [file] = sourceFileInput.files;
+        sourceFileInput.value = "";
+        if (file) run(file);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "create-image-bitmap-comparison",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "generate-source": "node scripts/generate-source.mjs"
+  },
+  "dependencies": {
+    "sharp": "0.35.4"
+  }
+}
