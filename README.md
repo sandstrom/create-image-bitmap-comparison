@@ -13,12 +13,15 @@ browser directory contains the native output PNGs.
 
 ## Run the test
 
-1. Open [index.html](index.html) in a browser. No server or external assets are
-	 required.
-2. Select `Choose source PNG` and open [original.png](original.png), or another
-	 2048×1536 PNG.
+1. Open the GitHub Pages site and select the reference chart or an included test
+	 image from `Choose included image`.
+2. To use another image, select `Choose source PNG` and open any 2048×1536 PNG.
 3. Wait until the outputs appear.
 4. Use `Download PNG` on each result to retain the native output.
+
+You can also open [index.html](index.html) directly without a server and use the
+upload control. Browsers block `fetch()` for local `file:` URLs, so the included
+image menu requires GitHub Pages or another HTTP server.
 
 The page runs a Canvas `drawImage()` control with `imageSmoothingQuality =
 "high"` in addition to the four `createImageBitmap()` modes. Only the native

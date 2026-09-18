@@ -96,7 +96,8 @@
       }
 
       button,
-      .file-picker {
+      .file-picker,
+      select {
         min-height: 42px;
         padding: 0 16px;
         border: 1px solid var(--ink);
@@ -105,6 +106,11 @@
         background: var(--ink);
         font: 650 0.9rem/1 "Avenir Next", Avenir, sans-serif;
         cursor: pointer;
+      }
+
+      select {
+        color: var(--ink);
+        background: var(--panel);
       }
 
       .file-picker {
@@ -131,7 +137,8 @@
         background: transparent;
       }
 
-      button:disabled {
+      button:disabled,
+      select:disabled {
         opacity: 0.45;
         cursor: wait;
       }
@@ -303,6 +310,14 @@
           <p class="lede">Compare how this browser reduces a 2048×1536 PNG to 256×192. The canonical stress chart is identified when selected, but other images work too.</p>
         </div>
         <div class="actions">
+          <select id="included-source" aria-label="Choose included source image">
+            <option value="" disabled selected>Choose included image</option>
+            <option value="original.png">Reference chart</option>
+            <option value="more-test-images/test-1.png">Test image 1</option>
+            <option value="more-test-images/test-2.png">Test image 2</option>
+            <option value="more-test-images/test-3.png">Test image 3</option>
+            <option value="more-test-images/test-4.png">Test image 4</option>
+          </select>
           <label class="file-picker">Choose source PNG<input id="source-file" type="file" accept="image/png"></label>
           <button id="rerun" class="secondary" disabled>Run again</button>
         </div>
@@ -317,11 +332,11 @@
         <h2>Original source</h2>
         <div class="source-layout">
           <figure>
-            <figcaption>Uploaded 2048×1536 source. The overview is scaled only by CSS.</figcaption>
+            <figcaption>Selected 2048×1536 source. The overview is scaled only by CSS.</figcaption>
             <canvas id="source-overview" width="2048" height="1536"></canvas>
           </figure>
           <figure>
-            <figcaption>640×512 crop of the spoke target at 1:1 pixels</figcaption>
+            <figcaption>640×512 source crop at 1:1 pixels</figcaption>
             <canvas id="source-crop" width="640" height="512"></canvas>
           </figure>
         </div>
@@ -360,11 +375,14 @@
       const sourceCanvas = document.querySelector("#source-overview");
       const sourceContext = sourceCanvas.getContext("2d", { alpha: false, willReadFrequently: true });
       const cropCanvas = document.querySelector("#source-crop");
+      const includedSourceSelect = document.querySelector("#included-source");
       const sourceFileInput = document.querySelector("#source-file");
       const resultsElement = document.querySelector("#results");
       const environmentElement = document.querySelector("#environment");
       const statusElement = document.querySelector("#status");
       const rerunButton = document.querySelector("#rerun");
+
+      includedSourceSelect.hidden = location.protocol === "file:";
 
       let sourceBlob;
       let runNumber = 0;
@@ -708,17 +726,27 @@
         return canvas;
       }
 
-      async function run(file = sourceBlob) {
-        if (!file) return;
+      async function fetchSource(path) {
+        const response = await fetch(path);
+        if (!response.ok) {
+          throw new Error(`Could not load ${path} (${response.status} ${response.statusText}).`);
+        }
+        return response.blob();
+      }
+
+      async function run(source = sourceBlob) {
+        if (!source) return;
 
         const currentRun = ++runNumber;
         statusElement.dataset.state = "working";
         statusElement.textContent = "Generating browser outputs…";
+        includedSourceSelect.disabled = true;
         sourceFileInput.disabled = true;
         rerunButton.disabled = true;
         resultsElement.replaceChildren();
 
         try {
+          const file = typeof source === "string" ? await fetchSource(source) : source;
           const { imageData: sourceImage, isReferenceFile } = await loadSourceImage(file);
           sourceBlob = file;
           const referenceData = areaAverage(sourceImage);
@@ -752,6 +780,7 @@
         } catch (error) {
           showError(error);
         } finally {
+          includedSourceSelect.disabled = false;
           sourceFileInput.disabled = false;
           rerunButton.disabled = !sourceBlob;
         }
@@ -759,9 +788,14 @@
 
       environmentElement.textContent = browserDescription();
       rerunButton.addEventListener("click", () => run());
+      includedSourceSelect.addEventListener("change", () => {
+        sourceFileInput.value = "";
+        if (includedSourceSelect.value) run(includedSourceSelect.value);
+      });
       sourceFileInput.addEventListener("change", () => {
         const [file] = sourceFileInput.files;
         sourceFileInput.value = "";
+        includedSourceSelect.value = "";
         if (file) run(file);
       });
     </script>
