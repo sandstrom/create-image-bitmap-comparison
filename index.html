@@ -730,17 +730,15 @@
             slug: "area-average",
             canvas: referenceCanvas,
             isReference: true
+          }, {
+            label: "Canvas high-quality reference (drawImage)",
+            slug: "canvas-high",
+            canvas: resizeWithCanvas()
           }];
 
           for (const quality of RESIZE_QUALITIES) {
             results.push(await makeImageBitmapResult(quality));
           }
-
-          results.push({
-            label: "Canvas drawImage: high",
-            slug: "canvas-high",
-            canvas: resizeWithCanvas()
-          });
 
           for (const result of results) {
             resultsElement.append(makeResultCard(result, referenceData));
